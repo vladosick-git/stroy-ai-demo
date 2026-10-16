@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>СметаПро AI - смета на ремонт с проверкой ИИ</title>
+<meta name="description" content="Демо-проект: ИИ-сметчик для стройки. Квиз, расчёт формулами, многошаговый AI-конвейер на GPT и Gemini, расход API, чат-помощник и оплата.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<header class="top"><div class="wrap bar">
+  <a class="logo" href="#"><span class="mark"><i></i></span>СметаПро <b>AI</b></a>
+  <nav class="tabs">
+    <button data-view="service" class="on">Сервис</button>
+    <button data-view="trace">Как работает ИИ</button>
+    <button data-view="admin">Админка</button>
+  </nav>
+  <button class="status" id="status" title="Режим работы ИИ"><span class="dot"></span><span id="statusText"></span></button>
+</div></header>
+
+<!-- ================= СЕРВИС ================= -->
+<main id="view-service">
+  <section class="wrap hero">
+    <div>
+      <span class="eyebrow">ИИ-сметчик для ремонта и стройки</span>
+      <h1>Смета за 2 минуты.<br><span>Считают формулы, проверяет ИИ.</span></h1>
+      <p>Ответьте на три вопроса и опишите объект своими словами. Нейросети разберут заявку, найдут риски и соберут готовый документ.</p>
+      <div class="hero-meta">
+        <span class="mchip openai">GPT-5 mini</span>
+        <span class="mchip gemini">Gemini 2.5 Flash</span>
+        <span class="sep"></span>
+        <span class="muted" id="heroCost">5 шагов · себестоимость расчёта ≈ 0,40 ₽</span>
+      </div>
+    </div>
+    <div class="pipe dark" id="heroPipe"></div>
+  </section>
+
+  <div class="wrap grid">
+    <section class="card" id="formcard">
+      <div class="steps"><span class="on" id="s1"></span><span id="s2"></span><span id="s3"></span></div>
+      <div id="step1">
+        <h2>1. Что делаем?</h2>
+        <p class="sub">Выберите вид работ</p>
+        <div class="tiles" id="tiles"></div>
+        <div class="actions"><button class="btn dark" id="to2" disabled>Дальше</button></div>
+      </div>
+      <div id="step2" class="hidden">
+        <h2>2. Размеры</h2>
+        <p class="sub" id="sub2"></p>
+        <div class="f" id="fields"></div>
+        <div class="err" id="err"></div>
+        <div class="actions"><button class="btn ghost" id="back1">Назад</button><button class="btn dark" id="to3">Дальше</button></div>
+      </div>
+      <div id="step3" class="hidden">
+        <h2>3. Объект и материалы</h2>
+        <p class="sub">От города и класса зависят цены, а комментарий прочитает ИИ</p>
+        <div class="f">
+          <div class="row2">
+            <label>Город
+              <select id="city">
+                <option value="1.25">Москва</option>
+                <option value="1.15">Санкт-Петербург</option>
+                <option value="1" selected>Казань</option>
+                <option value="0.9">Другой город</option>
+              </select>
+            </label>
+            <label>Класс материалов
+              <select id="grade">
+                <option value="0.85">Эконом</option>
+                <option value="1" selected>Стандарт</option>
+                <option value="1.3">Премиум</option>
+              </select>
+            </label>
+          </div>
+          <label>Работы мастеров
+            <select id="labor">
+              <option value="1" selected>Нужны: считать с работой</option>
+              <option value="0">Сделаю сам: только материалы</option>
+            </select>
+          </label>
+          <label>Опишите объект своими словами <span class="muted" style="font-weight:500">(необязательно)</span>
+            <textarea id="comment" placeholder="Например: старый дом, пол неровный, перепад около 3 см"></textarea>
+          </label>
+          <div class="ex" id="examples"></div>
+          <div class="ai-note"><i>✦</i><span>Комментарий разберёт нейросеть: найдёт условия, которые меняют расчёт, и передаст их инженеру-ИИ на проверку.</span></div>
+        </div>
+        <div class="actions"><button class="btn ghost" id="back2">Назад</button><button class="btn" id="calc">Рассчитать с ИИ</button></div>
+      </div>
+    </section>
+
+    <section class="card" id="result">
+      <div class="printhead"><h2>Смета - СметаПро AI</h2></div>
+      <div class="empty" id="resEmpty"><div class="big">📐</div>Здесь появится расчёт.<br>Начните с выбора вида работ.</div>
+      <div id="resRun" class="hidden">
+        <h2>ИИ работает над сметой</h2>
+        <p class="sub" id="runSub">5 шагов конвейера, каждый можно посмотреть в разделе «Как работает ИИ»</p>
+        <div class="run-list" id="runList"></div>
+      </div>
+      <div id="resBody" class="hidden">
+        <div class="res-head">
+          <div><h2 id="resTitle"></h2><p class="sub" id="resSub" style="margin-bottom:12px"></p></div>
+          <span class="tag ok" id="resTag">✓ Проверено ИИ</span>
+        </div>
+        <div class="conds" id="conds"></div>
+        <table id="tbl"></table>
+        <div class="risks" id="risks"></div>
+        <div id="adj"></div>
+        <div class="aibox">
+          <div class="ah"><span>Заключение для клиента</span><span class="mchip gemini" id="docModel">Gemini 2.5 Flash</span></div>
+          <p id="aiText" class="caret"></p>
+        </div>
+        <div class="qa" id="qa"></div>
+        <div class="meta" id="meta"></div>
+        <div class="cta">
+          <button class="btn" id="getPdf">Получить смету в PDF - 199 ₽</button>
+          <button class="btn ghost" id="again">Новый расчёт</button>
+        </div>
+        <p class="hint" style="margin-top:10px">Расчёт на экране бесплатный. Оплата нужна только за готовый PDF-документ.</p>
+      </div>
+    </section>
+  </div>
+</main>
+
+<!-- ================= КАК РАБОТАЕТ ИИ ================= -->
+<main id="view-trace" class="hidden">
+  <section class="wrap trace">
+    <div class="thead">
+      <div>
+        <h1>Как ИИ считает смету</h1>
+        <p id="traceSub">Каждая заявка проходит 5 шагов. Ниже - последний расчёт: промты, что ушло в модель, что она ответила и сколько это стоило.</p>
+      </div>
+      <div class="sumrow" id="sumrow"></div>
+    </div>
+    <div class="tgrid">
+      <ol class="tsteps" id="tsteps"></ol>
+      <div class="card tdetail" id="tdetail"></div>
+    </div>
+  </section>
+</main>
+
+<!-- ================= АДМИНКА ================= -->
+<main id="view-admin" class="hidden">
+  <section class="wrap admin">
+    <div class="ahead">
+      <div><h1>Админка</h1><p>Расход на нейросети, журнал вызовов, промты и подключения</p></div>
+      <div class="actions" style="margin:0"><button class="btn ghost sm" id="resetDemo">Сбросить демо-данные</button></div>
+    </div>
+    <div class="banner" id="banner"></div>
+    <div class="kpis" id="kpis"></div>
+    <div class="ag">
+      <div class="card chart"><div class="res-head"><div><h3>Расход на API по дням</h3><p class="sub">Последние 14 дней, $</p></div><span class="tag" id="chartTotal"></span></div><div id="chart"></div>
+        <div class="legend"><span><i style="background:var(--openai)"></i>OpenAI</span><span><i style="background:var(--gemini)"></i>Google Gemini</span></div></div>
+      <div class="card"><h3>По моделям</h3><p class="sub">С начала месяца</p><div id="bymodel"></div></div>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="res-head"><div><h3>Журнал вызовов ИИ</h3><p class="sub">Каждый запрос к модели: токены, стоимость, время ответа</p></div><span class="tag" id="logCount"></span></div>
+      <div class="tblwrap"><table class="logt" id="logt"></table></div>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="res-head"><div><h3>Промты конвейера</h3><p class="sub">Меняются без программиста. Переменные в {{скобках}} подставляются из заявки.</p></div></div>
+      <div class="ptabs" id="ptabs"></div>
+      <div class="pedit" id="pedit"></div>
+    </div>
+    <div class="ag2">
+      <div class="card keys">
+        <h3>Подключения</h3>
+        <p class="sub">Ключи хранятся только в этом браузере. В рабочей версии они лежат на сервере.</p>
+        <label class="switch"><input type="checkbox" id="liveSw"><span class="sw"></span><span><b>Боевой режим</b><small>Запросы уходят в настоящие API OpenAI и Gemini</small></span></label>
+        <div class="f">
+          <label>Ключ OpenAI <input id="kOpenai" type="password" placeholder="sk-..." autocomplete="off"></label>
+          <label>Ключ Google Gemini <input id="kGemini" type="password" placeholder="AIza..." autocomplete="off"></label>
+        </div>
+        <div class="actions"><button class="btn dark sm" id="saveKeys">Сохранить</button><button class="btn ghost sm" id="testOpenai">Проверить OpenAI</button><button class="btn ghost sm" id="testGemini">Проверить Gemini</button></div>
+        <div class="saved" id="keysMsg"></div>
+      </div>
+      <div class="card">
+        <h3>Бюджет и тарифы</h3>
+        <p class="sub">$ за 1 млн токенов. Расход считается по этим ценам.</p>
+        <div class="row2 f" style="margin-bottom:12px">
+          <label>Лимит в месяц, $ <input id="budget" type="number" min="1" step="1"></label>
+          <label>Курс, ₽ за $ <input id="rate" type="number" min="1" step="0.5"></label>
+        </div>
+        <table class="ptable" id="tariffs"></table>
+        <div class="actions"><button class="btn dark sm" id="saveTariffs">Сохранить</button></div>
+        <div class="saved" id="tarMsg"></div>
+      </div>
+    </div>
+    <div class="ag2">
+      <div class="card">
+        <h3>Цены материалов</h3>
+        <p class="sub">Базовые цены в рублях до поправок на город и класс</p>
+        <table class="ptable" id="ptable"></table>
+        <div class="actions"><button class="btn dark sm" id="savePrices">Сохранить цены</button><button class="btn ghost sm" id="resetPrices">Сбросить</button></div>
+        <div class="saved" id="priceMsg"></div>
+      </div>
+      <div class="card">
+        <h3>Оплаты PDF</h3>
+        <p class="sub" id="paySub"></p>
+        <div class="tblwrap"><table class="logt" id="payt"></table></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer><div class="wrap">
+  <span>СметаПро AI - демо-проект для портфолио. Формулы упрощённые, цены тестовые.</span>
+  <span id="footMode"></span>
+</div></footer>
+
+<button class="fab" id="fab"><i>✦</i>Спросить помощника</button>
+<div class="chat" id="chat">
+  <div class="ch"><div><b>Помощник СметаПро</b><small id="chatModel"></small></div><button id="chatClose" aria-label="Закрыть">×</button></div>
+  <div class="msgs" id="msgs"></div>
+  <div class="chips" id="chips"></div>
+  <form id="chatForm"><input id="chatIn" placeholder="Напишите вопрос" autocomplete="off"><button class="btn sm" style="padding:10px 14px">→</button></form>
+</div>
+
+<div class="modal" id="modal"><div class="pay" id="payBox"></div></div>
+
+<script src="js/data.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
